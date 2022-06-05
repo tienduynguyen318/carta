@@ -1,24 +1,25 @@
 package main
 
 import (
-	"encoding/json"
-	"io"
-	"log"
+	"fmt"
+	"strconv"
 )
 
-type outputWriter struct {
-	logger *log.Logger
+type STDOUTWriter struct {
+	precision int
 }
 
-func NewOutputWriter(writer io.Writer) (*outputWriter, error) {
-	logger := log.New(writer, "", 0)
-	return &outputWriter{logger: logger}, nil
-}
-
-func (ow *outputWriter) Print(input interface{}) {
-	b, err := json.MarshalIndent(input, "", "  ")
-	if err == nil {
-		ow.logger.Println(string(b))
+func (w *STDOUTWriter) PrintRecord(records map[string]*VestingRecordSummary) {
+	for _, summary := range records {
+		fmt.Printf("EmployeeID %v, EmployeeName %v, VestingID %v, Quantity %v \n",
+			summary.EmployeeID(),
+			summary.EmployeeName(),
+			summary.VestingID(),
+			strconv.FormatFloat(summary.TotalVested(), 'f', w.precision, 64),
+		)
 	}
-	return
+}
+
+func NewSTDOUTWriter(precision int) *STDOUTWriter {
+	return &STDOUTWriter{precision: precision}
 }

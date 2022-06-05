@@ -9,47 +9,33 @@ func NewVestingReport(inputReader InputReader, outputWriter OutputWriter) *Vesti
 	return &VestingReport{
 		inputReader:   inputReader,
 		outputWriter:  outputWriter,
-		vestingRecord: make(map[string]VestingRecordSummary),
+		vestingRecord: make(map[string]*VestingRecordSummary),
 	}
 }
 
 func (vr *VestingReport) RunReport(targetDate time.Time) error {
 	var err error
-	for vr.inputReader.HasNext() {
+	for {
 		vestingRecord, err := vr.inputReader.Next()
 		if err != nil {
 			return err
 		}
+		if vestingRecord == nil {
+			break
+		}
 		key := fmt.Sprintf("%v-%v", vestingRecord.EmployeeID, vestingRecord.VestingID)
 		if _, ok := vr.vestingRecord[key]; !ok {
-			initialQuantity := 0
-			vr.vestingRecord[key] = VestingRecordSummary{
-				EmployeeID:   vestingRecord.EmployeeID,
-				EmployeeName: vestingRecord.EmployeeName,
-				VestingID:    vestingRecord.VestingID,
-				TotalVested:  &initialQuantity,
-			}
+			vr.vestingRecord[key] = NewVestingRecordSummary(vestingRecord.EmployeeID, vestingRecord.EmployeeName, vestingRecord.VestingID)
 		}
-		switch vestingRecord.Action {
-		case "VEST":
-			if vestingRecord.Date.Unix() <= targetDate.Unix() {
-				summary := vr.vestingRecord[key]
-				*summary.TotalVested += vestingRecord.VestingQuantity
-
-			}
-		case "CANCEL":
-			if vestingRecord.Date.Unix() <= targetDate.Unix() {
-				summary := vr.vestingRecord[key]
-				*summary.TotalVested -= vestingRecord.VestingQuantity
-				if *summary.TotalVested < 0 {
-					err = fmt.Errorf("Number of share vested smaller than cancellation quantity")
-					return err
-				}
+		if vestingRecord.Date.Unix() <= targetDate.Unix() {
+			switch vestingRecord.Action {
+			case "VEST":
+				vr.vestingRecord[key].Vesting(vestingRecord.VestingQuantity)
+			case "CANCEL":
+				vr.vestingRecord[key].CancelVesting(vestingRecord.VestingQuantity)
 			}
 		}
 	}
-	for _, summary := range vr.vestingRecord {
-		vr.outputWriter.Print(summary)
-	}
+	vr.outputWriter.PrintRecord(vr.vestingRecord)
 	return err
 }

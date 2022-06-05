@@ -3,60 +3,54 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"time"
 )
 
-type inputReader struct {
-	data    [][]string
-	counter int
+type CSVInputReader struct {
+	cvsReader *csv.Reader
 }
 
-func NewInputReader(filePath string) (*inputReader, error) {
+func NewCSVInputReader(filePath string) (*CSVInputReader, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
 	reader := csv.NewReader(file)
-	data, err := reader.ReadAll()
-	if err != nil {
-		return nil, err
-	}
-	return &inputReader{data: data}, nil
+	return &CSVInputReader{cvsReader: reader}, nil
 }
 
 var layout = "2006-01-02"
 
-func (ir *inputReader) Next() (VestingRecord, error) {
+func (cir *CSVInputReader) Next() (*VestingRecord, error) {
 	var err error
-	record := ir.data[ir.counter]
-	ir.counter += 1
+	record, err := cir.cvsReader.Read()
+	if err != nil {
+		if err == io.EOF {
+			return nil, nil
+		}
+		return nil, err
+	}
 	if len(record) != 6 {
 		err = fmt.Errorf("Malformed data")
-		return VestingRecord{}, err
+		return nil, err
 	}
-	quantity, err := strconv.Atoi(record[5])
+	quantity, err := strconv.ParseFloat(record[5], 64)
 	if err != nil {
-		return VestingRecord{}, err
+		return nil, err
 	}
 	date, err := time.Parse(layout, record[4])
 	if err != nil {
-		return VestingRecord{}, err
+		return nil, err
 	}
-	return VestingRecord{
+	return &VestingRecord{
 		Action:          record[0],
 		EmployeeID:      record[1],
 		EmployeeName:    record[2],
 		VestingID:       record[3],
 		Date:            date,
 		VestingQuantity: quantity,
-	}, err
-}
-
-func (ir *inputReader) HasNext() bool {
-	if ir.counter >= len(ir.data) {
-		return false
-	}
-	return true
+	}, nil
 }

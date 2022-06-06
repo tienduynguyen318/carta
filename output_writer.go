@@ -11,7 +11,7 @@ type STDOUTWriter struct {
 
 func (w *STDOUTWriter) PrintRecord(records map[string]*VestingRecordSummary) {
 	for _, summary := range records {
-		fmt.Printf("EmployeeID %v, EmployeeName %v, VestingID %v, Quantity %v \n",
+		fmt.Printf("EmployeeID: %v, EmployeeName: %v, VestingID: %v, Quantity: %v. \n",
 			summary.EmployeeID(),
 			summary.EmployeeName(),
 			summary.VestingID(),

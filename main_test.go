@@ -40,7 +40,7 @@ type outputWriterDouble struct {
 
 func NewOutputWriterDouble(precision int) *outputWriterDouble {
 	builder := new(strings.Builder)
-	return &outputWriterDouble{builder: builder}
+	return &outputWriterDouble{builder: builder, precision: precision}
 }
 
 func (wd *outputWriterDouble) PrintRecord(records map[string]*VestingRecordSummary) {
@@ -51,7 +51,7 @@ func (wd *outputWriterDouble) PrintRecord(records map[string]*VestingRecordSumma
 	sort.Strings(keys)
 	for _, key := range keys {
 		summary := records[key]
-		wd.builder.WriteString(fmt.Sprintf("EmployeeID: %v, EmployeeName: %v, VestingID: %v, Quantity: %v",
+		wd.builder.WriteString(fmt.Sprintf("%v,%v,%v,%v",
 			summary.EmployeeID(),
 			summary.EmployeeName(),
 			summary.VestingID(),
@@ -62,20 +62,20 @@ func (wd *outputWriterDouble) PrintRecord(records map[string]*VestingRecordSumma
 
 func TestSinglePersonSuccessfulVest(t *testing.T) {
 	inputDouble := NewSingleEventInputReaderDouble()
-	outputDouble := NewOutputWriterDouble(2)
+	outputDouble := NewOutputWriterDouble(0)
 	vestingReport := NewVestingReport(inputDouble, outputDouble)
 	targetDate, _ := time.Parse(layout, "2021-03-04")
 	vestingReport.RunReport(targetDate)
-	assert.Equal(t, "EmployeeID: E001, EmployeeName: Alice Smith, VestingID: ISO-001, Quantity: 10", outputDouble.builder.String())
+	assert.Equal(t, "E001,Alice Smith,ISO-001,10", outputDouble.builder.String())
 }
 
 func TestSinglePersonFailVest(t *testing.T) {
 	inputDouble := NewSingleEventInputReaderDouble()
-	outputDouble := NewOutputWriterDouble(2)
+	outputDouble := NewOutputWriterDouble(0)
 	vestingReport := NewVestingReport(inputDouble, outputDouble)
 	targetDate, _ := time.Parse(layout, "2019-03-04")
 	vestingReport.RunReport(targetDate)
-	assert.Equal(t, "EmployeeID: E001, EmployeeName: Alice Smith, VestingID: ISO-001, Quantity: 0", outputDouble.builder.String())
+	assert.Equal(t, "E001,Alice Smith,ISO-001,0", outputDouble.builder.String())
 }
 
 type multiEventInputReaderDouble struct {
@@ -104,29 +104,45 @@ func NewMultiEventInputReaderDouble(record []*VestingRecord) *multiEventInputRea
 func TestSinglePersonMultiSuccessfulVestSameID(t *testing.T) {
 	records := testFactory.NewMultiVestingRecordsForSinglePerson()
 	inputDouble := NewMultiEventInputReaderDouble(records)
+	outputDouble := NewOutputWriterDouble(0)
+	vestingReport := NewVestingReport(inputDouble, outputDouble)
+	targetDate, _ := time.Parse(layout, "2021-03-04")
+	vestingReport.RunReport(targetDate)
+	assert.Equal(t, "E001,Alice Smith,ISO-001,30", outputDouble.builder.String())
+}
+
+func TestSinglePersonMultiSuccessfulVestSameIDWithPrecision(t *testing.T) {
+	records := make([]*VestingRecord, 0)
+	record1 := testFactory.NewVestingRecordForSinglePerson()
+	record1.VestingQuantity = 299.12332
+	records = append(records, record1)
+	record2 := testFactory.NewVestingRecordForSinglePerson()
+	record2.VestingQuantity = 132.81241
+	records = append(records, record2)
+	inputDouble := NewMultiEventInputReaderDouble(records)
 	outputDouble := NewOutputWriterDouble(2)
 	vestingReport := NewVestingReport(inputDouble, outputDouble)
 	targetDate, _ := time.Parse(layout, "2021-03-04")
 	vestingReport.RunReport(targetDate)
-	assert.Equal(t, "EmployeeID: E001, EmployeeName: Alice Smith, VestingID: ISO-001, Quantity: 30", outputDouble.builder.String())
+	assert.Equal(t, "E001,Alice Smith,ISO-001,431.94", outputDouble.builder.String())
 }
 
 func TestSinglePersonMultiSuccessfulVestDifferentID(t *testing.T) {
 	records := testFactory.NewMultiVestingRecordsForSinglePerson()
 	records = append(records, testFactory.NewVestingRecordForSinglePersonDifferentID())
 	inputDouble := NewMultiEventInputReaderDouble(records)
-	outputDouble := NewOutputWriterDouble(2)
+	outputDouble := NewOutputWriterDouble(0)
 	vestingReport := NewVestingReport(inputDouble, outputDouble)
 	targetDate, _ := time.Parse(layout, "2021-03-04")
 	vestingReport.RunReport(targetDate)
-	assert.Equal(t, "EmployeeID: E001, EmployeeName: Alice Smith, VestingID: ISO-001, Quantity: 30EmployeeID: E001, EmployeeName: Alice Smith, VestingID: ISO-002, Quantity: 50", outputDouble.builder.String())
+	assert.Equal(t, "E001,Alice Smith,ISO-001,30E001,Alice Smith,ISO-002,50", outputDouble.builder.String())
 }
 
 func TestSinglePersonWithExceedCancelVest(t *testing.T) {
 	records := make([]*VestingRecord, 0)
 	records = append(records, testFactory.NewCancelVestingRecord())
 	inputDouble := NewMultiEventInputReaderDouble(records)
-	outputDouble := NewOutputWriterDouble(2)
+	outputDouble := NewOutputWriterDouble(0)
 	vestingReport := NewVestingReport(inputDouble, outputDouble)
 	targetDate, _ := time.Parse(layout, "2021-03-04")
 	assert.Panics(t, func() { vestingReport.RunReport(targetDate) })
@@ -135,9 +151,9 @@ func TestSinglePersonWithExceedCancelVest(t *testing.T) {
 func TestMultiPeopleSuccessfulVest(t *testing.T) {
 	records := testFactory.NewMultiVestingRecordsForMultiPeople()
 	inputDouble := NewMultiEventInputReaderDouble(records)
-	outputDouble := NewOutputWriterDouble(2)
+	outputDouble := NewOutputWriterDouble(0)
 	vestingReport := NewVestingReport(inputDouble, outputDouble)
-	targetDate, _ := time.Parse(layout, "2021-03-04")
+	targetDate, _ := time.Parse(layout, "2021-04-04")
 	vestingReport.RunReport(targetDate)
-	assert.Equal(t, "EmployeeID: E001, EmployeeName: Alice Smith, VestingID: ISO-001, Quantity: 30EmployeeID: E002, EmployeeName: Bobby Jones, VestingID: NSO-001, Quantity: 0", outputDouble.builder.String())
+	assert.Equal(t, "E001,Alice Smith,ISO-001,30E002,Bobby Jones,NSO-001,20", outputDouble.builder.String())
 }

@@ -34,7 +34,6 @@ Lastly, I remove the dependency of the test from csv file by swapping it with fa
 
 ## Future Improvement
 
-1. Add logging
-2. Handle error better: Instead of panic cancel option larger than vested option, exit the application
-3. Tolerate faulty data: If the data is incorrect/malformed, simply continue to the next row
-4. Persist the report: It is likely that the report will be reused and therefore we should persist it
+1. Handle error better: Instead of panic cancel option larger than vested option, exit the application
+2. Tolerate faulty data: If the data is incorrect/malformed, simply continue to the next row. Notify the user which data row is malformed
+3. Persist the report: It is likely that the report will be reused and therefore we should persist it. It can be easily done with a Repository. The Repository allows the retrieval and insertion of data to be abstracted behind a stable interface. It implements the [Repository Design Pattern](martinfowler.com/eaaCatalog/repository.html). In the future this allows the domain model to be tested without any infrastructure concerns, specifically the data layer
